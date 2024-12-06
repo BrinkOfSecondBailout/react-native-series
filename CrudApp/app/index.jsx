@@ -3,18 +3,52 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Inter_500Medium, useFonts } from '@expo-google-fonts/inter';
 import Octicons from '@expo/vector-icons/Octicons'
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { ThemeContext } from "@/context/ThemeContext"
 import {data} from '@/data/todos';
+import Animated, { LinearTransition } from 'react-native-reanimated'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export default function Index() {
-  const [todos, setTodos] = useState(data.sort((a, b) => b.id - a.id));
+  const [todos, setTodos] = useState([]);
   const [text, setText] = useState('');
   const {colorScheme, setColorScheme, theme} = useContext(ThemeContext);
 
   const [loaded, error] = useFonts({
     Inter_500Medium,
   })
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem("TodoApp")
+        const storageTodos = jsonValue != null ? JSON.parse(jsonValue) : null
+
+        if (storageTodos && storageTodos.length) {
+          setTodos(storageTodos.sort((a, b) => b.id - a.id))
+        } else {
+          setTodos(data.sort((a, b) => b.id - a.id))
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    fetchData()
+  }, [data])
+
+  useEffect(() => {
+    const storeData = async () => {
+      try {
+        const jsonValue = JSON.stringify(todos)
+        await AsyncStorage.setItem("TodoApp", jsonValue)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+
+    storeData()
+  }, [todos])
 
   if (!loaded && !error) {
     return null;
@@ -24,7 +58,7 @@ export default function Index() {
 
   const addTodo = () => {
     if (text.trim()) {
-      const newId =  todos.length > 0 ? todos[1].id + 1 : 1
+      const newId =  todos.length > 0 ? todos[0].id + 1 : 1
       setTodos([{ id: newId, title: text, completed: false}, ...todos])
       setText('')
     }
@@ -81,11 +115,13 @@ export default function Index() {
         </Pressable>
       </View>
 
-      <FlatList
+      <Animated.FlatList
         data={todos}
         renderItem={renderItem}
         keyExtractor={todo => todo.id}
         contentContainerStyle={{ flexGrow: 1}}
+        itemLayoutAnimation={LinearTransition}
+        keyboardDismissMode="on-drag"
       />
 
     </SafeAreaView>
@@ -154,43 +190,4 @@ function createStyles(theme, colorScheme) {
     }
   })
 }
-
-
-
-
-  // const colorScheme = Appearance.getColorScheme();
-
-  // const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
-
-  // const styles = createStyles(theme, colorScheme);
-
-  // const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
-
-  // const separatorComp = <View style={styles.separator} />
-
-  // const footerComp = <Text style={{ color: theme.text }}>End of Menu</Text>
-
-  // return (
-  //   <Container>
-  //     <FlatList 
-  //     data={todos}
-  //     keyExtractors={(todo) => todo.id.toString()}
-  //     showsVerticalScrollIndicator={true}
-  //     contentContainerStyle={styles.contentContainer}
-  //     ItemSeparatorComponent={separatorComp}
-  //     ListFooterComponent={footerComp}
-  //     ListFooterComponentStyle={styles.footerComp}
-  //     ListEmptyComponent={<Text>No todo items available</Text>}
-  //     renderItem={({ item }) => (
-  //       <View style={styles.row}>
-  //         <View style={styles.todoTextRow}>
-  //           <Text style={[styles.todoItemTitle, styles.todoItemText]}>{item.title}</Text>
-  //           <Text style={styles.todoItemText}>{item.completed}</Text>
-  //         </View>
-  //       </View>
-  //     )
-  //     }
-  //     />
-  //   </Container>
-  // );
 
